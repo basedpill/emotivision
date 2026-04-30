@@ -1,0 +1,883 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>EmotionDetection</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --white: #ffffff;
+      --off: #f7f7f5;
+      --line: #e8e8e4;
+      --line2: #d0d0ca;
+      --text: #1a1a18;
+      --muted: #888880;
+      --faint: #b8b8b2;
+      --accent: #2a2a28;
+      --mono: 'IBM Plex Mono', monospace;
+      --sans: 'Inter', sans-serif;
+    }
+
+    body {
+      background: var(--off);
+      color: var(--text);
+      font-family: var(--sans);
+      font-size: 14px;
+      min-height: 100vh;
+    }
+
+    /* layout */
+    .shell {
+      max-width: 1160px;
+      margin: 0 auto;
+      padding: 32px 24px;
+    }
+
+    /* header */
+    .top {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      margin-bottom: 28px;
+    }
+
+    .wordmark {
+      font-family: var(--mono);
+      font-size: 15px;
+      font-weight: 500;
+      letter-spacing: -0.3px;
+      color: var(--text);
+    }
+
+    .wordmark em {
+      font-style: normal;
+      color: var(--muted);
+    }
+
+    .status {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      font-size: 12px;
+      font-family: var(--mono);
+      color: var(--muted);
+    }
+
+    .pip {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: var(--faint);
+    }
+
+    .pip.live {
+      background: #4caf50;
+      animation: breathe 2.4s ease-in-out infinite;
+    }
+
+    @keyframes breathe {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.35; }
+    }
+
+    /* 3-col grid */
+    .cols {
+      display: grid;
+      grid-template-columns: 1fr 260px 220px;
+      gap: 16px;
+      align-items: start;
+    }
+
+    @media (max-width: 960px) { .cols { grid-template-columns: 1fr 260px; } }
+    @media (max-width: 680px) { .cols { grid-template-columns: 1fr; } }
+
+    /* panels */
+    .panel {
+      background: var(--white);
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      overflow: hidden;
+    }
+
+    .panel-label {
+      font-size: 10px;
+      font-family: var(--mono);
+      letter-spacing: 0.8px;
+      text-transform: uppercase;
+      color: var(--faint);
+      padding: 12px 16px 10px;
+      border-bottom: 1px solid var(--line);
+    }
+
+    /* video */
+    .cam-wrap {
+      position: relative;
+      aspect-ratio: 4 / 3;
+      background: #111;
+      overflow: hidden;
+    }
+
+    #video {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
+      transform: scaleX(-1);
+    }
+
+    #boxCanvas {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+    }
+
+    /* dominant emotion chip, bottom left */
+    .chip {
+      position: absolute;
+      bottom: 14px;
+      left: 14px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      background: rgba(255,255,255,0.92);
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      padding: 7px 12px;
+      opacity: 0;
+      transition: opacity 0.25s;
+      backdrop-filter: blur(6px);
+    }
+
+    .chip.show { opacity: 1; }
+    .chip-label { font-family: var(--mono); font-size: 12px; font-weight: 500; color: var(--text); }
+    .chip-conf { font-family: var(--mono); font-size: 11px; color: var(--muted); }
+
+    /* face count top right */
+    .fcount {
+      position: absolute;
+      top: 12px;
+      right: 12px;
+      font-family: var(--mono);
+      font-size: 10px;
+      color: rgba(255,255,255,0.7);
+      background: rgba(0,0,0,0.35);
+      padding: 4px 8px;
+      border-radius: 4px;
+      opacity: 0;
+      transition: opacity 0.2s;
+      backdrop-filter: blur(4px);
+    }
+
+    .fcount.show { opacity: 1; }
+
+    /* camera controls */
+    .cam-foot {
+      display: flex;
+      gap: 8px;
+      padding: 12px 14px;
+      border-top: 1px solid var(--line);
+      background: var(--white);
+    }
+
+    .btn {
+      flex: 1;
+      height: 34px;
+      border-radius: 6px;
+      border: 1px solid var(--line2);
+      background: var(--white);
+      font-family: var(--sans);
+      font-size: 13px;
+      font-weight: 400;
+      color: var(--text);
+      cursor: pointer;
+      transition: background 0.15s, border-color 0.15s;
+    }
+
+    .btn:hover { background: var(--off); }
+
+    .btn.primary {
+      background: var(--text);
+      color: var(--white);
+      border-color: var(--text);
+    }
+
+    .btn.primary:hover { background: #333; }
+    .btn:disabled { opacity: 0.35; cursor: not-allowed; }
+
+    /* live analysis bars */
+    .bar-list {
+      padding: 12px 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .bar-row {}
+
+    .bar-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      margin-bottom: 4px;
+    }
+
+    .bar-name {
+      font-size: 12px;
+      color: var(--text);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .bar-name .dot-color {
+      width: 5px;
+      height: 5px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+
+    .bar-pct {
+      font-family: var(--mono);
+      font-size: 11px;
+      color: var(--muted);
+    }
+
+    .bar-track {
+      height: 3px;
+      background: var(--line);
+      border-radius: 2px;
+      overflow: hidden;
+    }
+
+    .bar-fill {
+      height: 100%;
+      border-radius: 2px;
+      width: 0%;
+      transition: width 0.35s ease;
+    }
+
+    .empty-state {
+      padding: 40px 16px;
+      text-align: center;
+      color: var(--faint);
+      font-size: 12px;
+      line-height: 1.8;
+    }
+
+    /* right col */
+    .right { display: flex; flex-direction: column; gap: 16px; }
+
+    /* stats */
+    .stat-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1px;
+      background: var(--line);
+    }
+
+    .stat-cell {
+      background: var(--white);
+      padding: 12px 14px;
+    }
+
+    .stat-val {
+      font-family: var(--mono);
+      font-size: 18px;
+      font-weight: 500;
+      color: var(--text);
+      line-height: 1;
+      margin-bottom: 4px;
+    }
+
+    .stat-lbl {
+      font-size: 10px;
+      color: var(--faint);
+      letter-spacing: 0.3px;
+    }
+
+    /* model accuracy ring */
+    .ring-wrap {
+      padding: 20px 16px 16px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .ring-svg { overflow: visible; }
+
+    .ring-bg { fill: none; stroke: var(--line); stroke-width: 6; }
+    .ring-fg { fill: none; stroke: var(--text); stroke-width: 6; stroke-linecap: round; stroke-dasharray: 226; stroke-dashoffset: 226; transition: stroke-dashoffset 1.2s cubic-bezier(.4,0,.2,1); }
+
+    .ring-center {
+      text-anchor: middle;
+      dominant-baseline: middle;
+    }
+
+    .ring-num {
+      font-family: var(--mono);
+      font-size: 16px;
+      font-weight: 500;
+      fill: var(--text);
+    }
+
+    .ring-sub {
+      font-family: var(--sans);
+      font-size: 9px;
+      fill: var(--faint);
+    }
+
+    .ring-label {
+      font-size: 11px;
+      color: var(--muted);
+      text-align: center;
+      line-height: 1.6;
+    }
+
+    /* per-class rows */
+    .class-rows { padding: 10px 16px; display: flex; flex-direction: column; gap: 8px; }
+
+    .cr {
+      padding: 6px 8px;
+      border-radius: 5px;
+      transition: background 0.15s;
+    }
+
+    .cr.active { background: var(--off); }
+
+    .cr-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      margin-bottom: 5px;
+    }
+
+    .cr-name { font-size: 12px; color: var(--text); }
+    .cr-f1 { font-family: var(--mono); font-size: 10px; color: var(--faint); }
+
+    .cr-bars { display: grid; grid-template-columns: 1fr 1fr; gap: 5px; }
+
+    .cr-bar-item { display: flex; flex-direction: column; gap: 2px; }
+    .cr-bar-lbl { font-size: 9px; font-family: var(--mono); color: var(--faint); }
+    .cr-track { height: 3px; background: var(--line); border-radius: 2px; overflow: hidden; }
+    .cr-fill { height: 100%; border-radius: 2px; background: var(--text); width: 0%; transition: width 0.9s ease; }
+
+    .legend-note {
+      font-size: 10px;
+      color: var(--faint);
+      padding: 8px 16px 12px;
+      border-top: 1px solid var(--line);
+      line-height: 1.7;
+    }
+
+    /* history row */
+    .hist-row {
+      padding: 10px 14px;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      min-height: 44px;
+      align-items: center;
+    }
+
+    .hist-pill {
+      font-family: var(--mono);
+      font-size: 10px;
+      color: var(--muted);
+      background: var(--off);
+      border: 1px solid var(--line);
+      border-radius: 4px;
+      padding: 3px 8px;
+      animation: fadein 0.2s ease;
+    }
+
+    @keyframes fadein { from { opacity: 0; transform: scale(0.85); } to { opacity: 1; transform: scale(1); } }
+
+    .warn {
+      background: #fffbeb;
+      border: 1px solid #f0d080;
+      border-radius: 6px;
+      padding: 10px 14px;
+      font-size: 12px;
+      color: #7a5c10;
+      margin-bottom: 16px;
+      display: none;
+    }
+    .warn.show { display: block; }
+  </style>
+</head>
+<body>
+<div class="shell">
+
+  <div class="top">
+    <div class="wordmark">emotiondetection</div>
+    <div class="status">
+      <div class="pip" id="pip"></div>
+      <span id="stxt">offline</span>
+    </div>
+  </div>
+
+  {% if not model_loaded %}
+  <div class="warn show">Model not found, run <code>python train_model.py</code> first.</div>
+  {% endif %}
+
+  <div class="cols">
+
+    <!-- camera -->
+    <div class="panel">
+      <div class="panel-label">camera</div>
+      <div class="cam-wrap">
+        <video id="video" autoplay playsinline muted></video>
+        <canvas id="boxCanvas"></canvas>
+        <div class="fcount" id="fcount"></div>
+        <div class="chip" id="chip">
+          <span class="chip-label" id="chipLabel">neutral</span>
+          <span class="chip-conf" id="chipConf">—</span>
+        </div>
+      </div>
+      <div class="cam-foot">
+        <button class="btn primary" id="startBtn" onclick="startCam()">start</button>
+        <button class="btn" id="stopBtn" onclick="stopCam()" disabled>stop</button>
+        <button class="btn" id="gcBtn" onclick="toggleGradcam()" disabled>heatmap off</button>
+        <span style="font-family:var(--mono);font-size:11px;color:var(--faint);align-self:center;margin-left:4px" id="fps"></span>
+      </div>
+    </div>
+
+    <!-- middle: live analysis + history -->
+    <div style="display:flex;flex-direction:column;gap:16px">
+
+      <div class="panel">
+        <div class="panel-label">live analysis</div>
+        <div id="barContent">
+          <div class="empty-state">start camera<br>to detect emotions</div>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-label">session</div>
+        <div class="stat-grid">
+          <div class="stat-cell"><div class="stat-val" id="s1">0</div><div class="stat-lbl">frames</div></div>
+          <div class="stat-cell"><div class="stat-val" id="s2">0</div><div class="stat-lbl">faces</div></div>
+          <div class="stat-cell"><div class="stat-val" id="s3">—</div><div class="stat-lbl">top emotion</div></div>
+          <div class="stat-cell"><div class="stat-val" id="s4">—</div><div class="stat-lbl">ms latency</div></div>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-label">history</div>
+        <div class="hist-row" id="histRow">
+          <span style="font-size:11px;color:var(--faint)">no data</span>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- right: model info -->
+    <div class="right">
+
+      <div class="panel">
+        <div class="panel-label">model accuracy</div>
+        <div class="ring-wrap">
+          <svg class="ring-svg" width="90" height="90" viewBox="0 0 90 90">
+            <circle class="ring-bg" cx="45" cy="45" r="36"/>
+            <circle class="ring-fg" id="ringFg" cx="45" cy="45" r="36" transform="rotate(-90 45 45)"/>
+            <text class="ring-center" x="45" y="42">
+              <tspan class="ring-num" x="45" dy="0">—</tspan>
+            </text>
+            <text class="ring-center ring-sub" x="45" y="55">test set</text>
+          </svg>
+          <div class="ring-label">FER2013 · 7 classes</div>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-label">per-class performance</div>
+        <div class="class-rows" id="classRows"></div>
+        <div class="legend-note">
+          precision: when predicted, how often correct<br>
+          recall: of all real examples, how many found
+        </div>
+      </div>
+
+      <div class="panel" id="heatmapPanel" style="display:none">
+        <div class="panel-label">attention map <span style="font-size:9px;color:var(--faint);text-transform:none;letter-spacing:0">grad-cam</span></div>
+        <div style="padding:12px;text-align:center">
+          <img id="heatmapImg" alt="" style="width:100%;border-radius:4px;display:block"/>
+          <div style="font-family:var(--mono);font-size:10px;color:var(--muted);margin-top:6px" id="heatmapEmo">—</div>
+        </div>
+      </div>
+
+    </div>
+
+  </div>
+</div>
+
+<script>
+const EMOTIONS = {
+  angry:   { label: 'angry',    color: '#c0392b' },
+  disgust: { label: 'disgust',  color: '#27ae60' },
+  fear:    { label: 'fear',     color: '#8e44ad' },
+  happy:   { label: 'happy',    color: '#e67e22' },
+  neutral: { label: 'neutral',  color: '#7f8c8d' },
+  sad:     { label: 'sad',      color: '#2980b9' },
+  surprise:{ label: 'surprise', color: '#d35400' },
+};
+
+// temporal smoothing
+// EMA: s_t = a*r_t + (1-a)*s_{t-1}; higher a = faster response, less smoothing
+const SMOOTH_ALPHA   = 0.35;
+let smoothedScores   = {};
+let confHistory      = [];  // rolling buffer of dominant emotion confidence (last 20 frames)
+
+function smooth(emotions) {
+  emotions.forEach(em => {
+    smoothedScores[em.name] = smoothedScores[em.name] === undefined
+      ? em.score
+      : SMOOTH_ALPHA * em.score + (1 - SMOOTH_ALPHA) * smoothedScores[em.name];
+  });
+  return emotions
+    .map(em => ({ ...em, score: parseFloat(smoothedScores[em.name].toFixed(1)) }))
+    .sort((a, b) => b.score - a.score);
+}
+
+// grad-cam
+let heatmapEnabled = false;
+let heatmapTick    = 0;
+
+function toggleGradcam() {
+  heatmapEnabled = !heatmapEnabled;
+  const btn = document.getElementById('gcBtn');
+  btn.textContent   = heatmapEnabled ? 'heatmap on' : 'heatmap off';
+  btn.style.fontWeight = heatmapEnabled ? '500' : '';
+  if (!heatmapEnabled) {
+    document.getElementById('heatmapPanel').style.display = 'none';
+  }
+}
+
+async function fetchGradcam(imgDataUrl) {
+  if (!heatmapEnabled) return;
+  heatmapTick++;
+  if (heatmapTick % 3 !== 0) return;  // update every 3rd frame, gradcam is slower than analyze
+  try {
+    const res  = await fetch('/gradcam', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ image: imgDataUrl })
+    });
+    const data = await res.json();
+    if (data.success && data.heatmaps && data.heatmaps.length > 0) {
+      const h = data.heatmaps[0];
+      document.getElementById('heatmapImg').src   = h.image;
+      document.getElementById('heatmapEmo').textContent = h.emotion;
+      document.getElementById('heatmapPanel').style.display = 'block';
+    }
+  } catch(e) {
+    console.warn('gradcam request failed:', e);
+  }
+}
+
+// fallback stats only used if /stats can't be reached at all (e.g. server returned 500)
+// numbers correspond to the v5b ensemble. /stats is the source of truth at runtime.
+const CLASS_STATS = [
+  { name:'happy',    precision:88, recall:89, f1:89 },
+  { name:'surprise', precision:76, recall:82, f1:79 },
+  { name:'neutral',  precision:55, recall:77, f1:64 },
+  { name:'angry',    precision:60, recall:66, f1:63 },
+  { name:'sad',      precision:57, recall:52, f1:54 },
+  { name:'disgust',  precision:71, recall:42, f1:53 },
+  { name:'fear',     precision:63, recall:30, f1:41 },
+];
+
+// model info panel
+
+function buildClassRows(report) {
+  const container = document.getElementById('classRows');
+  container.innerHTML = '';
+
+  let stats;
+  if (report) {
+    const skip = ['accuracy', 'macro avg', 'weighted avg'];
+    stats = Object.entries(report)
+      .filter(([k]) => !skip.includes(k))
+      .map(([name, v]) => ({
+        name,
+        precision: Math.round(v.precision * 100),
+        recall:    Math.round(v.recall * 100),
+        f1:        Math.round(v['f1-score'] * 100)
+      }))
+      .sort((a, b) => b.f1 - a.f1);
+  } else {
+    stats = CLASS_STATS;
+  }
+
+  stats.forEach(c => {
+    const div = document.createElement('div');
+    div.className = 'cr';
+    div.dataset.name = c.name;
+    div.innerHTML = `
+      <div class="cr-top">
+        <span class="cr-name">${c.name}</span>
+        <span class="cr-f1">f1 ${c.f1}%</span>
+      </div>
+      <div class="cr-bars">
+        <div class="cr-bar-item">
+          <span class="cr-bar-lbl">prec ${c.precision}%</span>
+          <div class="cr-track"><div class="cr-fill" data-w="${c.precision}"></div></div>
+        </div>
+        <div class="cr-bar-item">
+          <span class="cr-bar-lbl">recall ${c.recall}%</span>
+          <div class="cr-track"><div class="cr-fill" data-w="${c.recall}"></div></div>
+        </div>
+      </div>`;
+    container.appendChild(div);
+  });
+  setTimeout(() => {
+    document.querySelectorAll('.cr-fill').forEach(el => { el.style.width = el.dataset.w + '%'; });
+  }, 300);
+}
+
+function animateRing(acc) {
+  setTimeout(() => {
+    const r = document.getElementById('ringFg');
+    r.style.strokeDashoffset = Math.round(226 * (1 - acc));
+  }, 200);
+}
+
+async function loadStats() {
+  try {
+    const resp = await fetch('/stats');
+    const data = await resp.json();
+
+    if (data.test_accuracy != null) {
+      const pct = (data.test_accuracy * 100).toFixed(1);
+      document.querySelector('.ring-num').textContent = pct + '%';
+      // build the secondary label: ensemble vs single-model + epoch count
+      let label = 'FER2013 · 7 classes';
+      if (data.ensemble_size && data.ensemble_size > 1) {
+        label += `<br>${data.ensemble_size}-model ensemble`;
+      }
+      if (data.epochs_trained) {
+        label += ` · ${data.epochs_trained} epochs`;
+      }
+      document.querySelector('.ring-label').innerHTML = label;
+      animateRing(data.test_accuracy);
+    }
+
+    buildClassRows(data.class_report);
+  } catch(e) {
+    console.warn('could not load /stats', e);
+    buildClassRows(null);
+  }
+}
+
+loadStats();
+
+// camera + analysis
+let stream = null, running = false, analyzing = false, iid = null;
+let frames = 0, totalFaces = 0, fpsBuf = [], emoCount = {}, hist = [];
+let barsReady = false;
+
+const video  = document.getElementById('video');
+const canvas = document.getElementById('boxCanvas');
+const ctx    = canvas.getContext('2d');
+
+async function startCam() {
+  try {
+    stream = await navigator.mediaDevices.getUserMedia({ video: { width: 640, height: 480 } });
+    video.srcObject = stream;
+    video.onloadedmetadata = () => { canvas.width = video.videoWidth; canvas.height = video.videoHeight; };
+    running = true;
+    document.getElementById('startBtn').disabled = true;
+    document.getElementById('stopBtn').disabled  = false;
+    document.getElementById('gcBtn').disabled    = false;
+    document.getElementById('pip').classList.add('live');
+    document.getElementById('stxt').textContent = 'live';
+    iid = setInterval(analyzeFrame, 500);
+  } catch(e) { alert('Camera error: ' + e.message); }
+}
+
+function stopCam() {
+  running = false;
+  if (stream) stream.getTracks().forEach(t => t.stop());
+  if (iid) clearInterval(iid);
+  video.srcObject = null;
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  document.getElementById('startBtn').disabled = false;
+  document.getElementById('stopBtn').disabled  = true;
+  document.getElementById('gcBtn').disabled    = true;
+  document.getElementById('gcBtn').textContent = 'heatmap off';
+  document.getElementById('gcBtn').style.fontWeight = '';
+  document.getElementById('pip').classList.remove('live');
+  document.getElementById('stxt').textContent = 'offline';
+  document.getElementById('chip').classList.remove('show');
+  document.getElementById('fcount').classList.remove('show');
+  document.getElementById('fps').textContent = '';
+  document.getElementById('heatmapPanel').style.display = 'none';
+  document.querySelectorAll('.cr').forEach(r => r.classList.remove('active'));
+  // reset smoothing state so next session starts fresh
+  heatmapEnabled = false;
+  smoothedScores = {};
+  confHistory    = [];
+}
+
+async function analyzeFrame() {
+  if (!running || analyzing) return;
+  analyzing = true;
+  const t0  = performance.now();
+  const cap = document.createElement('canvas');
+  cap.width = video.videoWidth; cap.height = video.videoHeight;
+  cap.getContext('2d').drawImage(video, 0, 0);
+  const imgDataUrl = cap.toDataURL('image/jpeg', 0.7);
+
+  // fire gradcam request independently , don't await, keeps main loop responsive
+  fetchGradcam(imgDataUrl);
+
+  try {
+    const res  = await fetch('/analyze', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ image: imgDataUrl })
+    });
+    const data = await res.json();
+    const lat  = Math.round(performance.now() - t0);
+
+    if (data.success && data.faces && data.faces.length > 0) {
+      // clear once, draw a box for every detected face
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      data.faces.forEach(f => drawBox(f.region, f.dominant, false));
+
+      // apply EMA smoothing then render bars/chip for the most confident face
+      const face           = data.faces[0];
+      const smoothed       = smooth(face.emotions);
+      const dom            = smoothed[0].name;
+      renderBars(smoothed);
+      updateChip({ dominant: dom, emotions: smoothed });
+      totalFaces += data.face_count;
+
+      // track confidence history for stability metric
+      confHistory.push(smoothed[0].score);
+      if (confHistory.length > 20) confHistory.shift();
+
+      emoCount[dom] = (emoCount[dom] || 0) + 1;
+      hist.push(dom);
+      if (hist.length > 20) hist.shift();
+      renderHist();
+
+      document.getElementById('fcount').textContent = data.face_count + (data.face_count === 1 ? ' face' : ' faces');
+      document.getElementById('fcount').classList.add('show');
+      document.querySelectorAll('.cr').forEach(r => r.classList.toggle('active', r.dataset.name === dom));
+    } else {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      document.getElementById('chip').classList.remove('show');
+      document.getElementById('fcount').classList.remove('show');
+      document.querySelectorAll('.cr').forEach(r => r.classList.remove('active'));
+    }
+
+    frames++;
+    document.getElementById('s1').textContent = frames;
+    document.getElementById('s2').textContent = totalFaces;
+    document.getElementById('s4').textContent = lat;
+
+    if (Object.keys(emoCount).length) {
+      const top = Object.entries(emoCount).sort((a, b) => b[1] - a[1])[0][0];
+      document.getElementById('s3').textContent = top;
+    }
+
+    const now = Date.now(); fpsBuf.push(now);
+    fpsBuf = fpsBuf.filter(t => now - t < 5000);
+    let fpsText = (fpsBuf.length / 5).toFixed(1) + ' fps';
+    // show prediction stability (σ of dominant confidence over last 20 frames)
+    if (confHistory.length >= 5) {
+      const mean = confHistory.reduce((a, b) => a + b, 0) / confHistory.length;
+      const std  = Math.sqrt(confHistory.reduce((s, v) => s + (v - mean) ** 2, 0) / confHistory.length);
+      fpsText += '  σ' + std.toFixed(1);
+    }
+    document.getElementById('fps').textContent = fpsText;
+
+  } catch(e) { console.error(e); }
+  analyzing = false;
+}
+
+// build the bar rows once on first use, then just update widths
+function buildBars() {
+  const order = ['happy', 'neutral', 'sad', 'angry', 'surprise', 'fear', 'disgust'];
+  const list = document.createElement('div');
+  list.className = 'bar-list';
+  list.id = 'bl';
+  order.forEach(name => {
+    const meta = EMOTIONS[name] || { label: name, color: '#888' };
+    const row = document.createElement('div');
+    row.className = 'bar-row';
+    row.innerHTML = `
+      <div class="bar-top">
+        <span class="bar-name">
+          <span class="dot-color" style="background:${meta.color}"></span>
+          ${meta.label}
+        </span>
+        <span class="bar-pct" id="pct-${name}">0.0%</span>
+      </div>
+      <div class="bar-track">
+        <div class="bar-fill" id="fill-${name}" style="background:${meta.color};width:0%"></div>
+      </div>`;
+    list.appendChild(row);
+  });
+  const container = document.getElementById('barContent');
+  container.innerHTML = '';
+  container.appendChild(list);
+  barsReady = true;
+}
+
+function renderBars(emotions) {
+  if (!barsReady) buildBars();
+  emotions.forEach(em => {
+    const fill = document.getElementById('fill-' + em.name);
+    const pct  = document.getElementById('pct-'  + em.name);
+    if (fill) fill.style.width  = em.score + '%';
+    if (pct)  pct.textContent   = em.score.toFixed(1) + '%';
+  });
+}
+
+function updateChip(face) {
+  document.getElementById('chipLabel').textContent = face.dominant;
+  document.getElementById('chipConf').textContent = (face.emotions[0]?.score || 0).toFixed(1) + '%';
+  document.getElementById('chip').classList.add('show');
+}
+
+function drawBox(r, emotion, clearFirst = true) {
+  if (clearFirst) ctx.clearRect(0, 0, canvas.width, canvas.height);
+  if (!r || !r.w) return;
+  const meta = EMOTIONS[emotion] || { color: '#888' };
+  // The video has CSS scaleX(-1) applied for a mirror/selfie view, so we need to
+  // flip the bounding box x coordinate to match what the user sees on screen.
+  const mx = canvas.width - r.x - r.w;
+  const cl = 16;
+  ctx.strokeStyle = meta.color;
+  ctx.lineWidth = 1.5;
+  ctx.setLineDash([]);
+  ctx.beginPath();
+  ctx.moveTo(mx, r.y + cl);              ctx.lineTo(mx, r.y);               ctx.lineTo(mx + cl, r.y);
+  ctx.moveTo(mx + r.w - cl, r.y);        ctx.lineTo(mx + r.w, r.y);         ctx.lineTo(mx + r.w, r.y + cl);
+  ctx.moveTo(mx, r.y + r.h - cl);        ctx.lineTo(mx, r.y + r.h);         ctx.lineTo(mx + cl, r.y + r.h);
+  ctx.moveTo(mx + r.w - cl, r.y + r.h);  ctx.lineTo(mx + r.w, r.y + r.h);   ctx.lineTo(mx + r.w, r.y + r.h - cl);
+  ctx.stroke();
+}
+
+function renderHist() {
+  const container = document.getElementById('histRow');
+  const recent = [...hist].reverse().slice(0, 8);
+  container.innerHTML = '';
+  recent.forEach(em => {
+    const pill = document.createElement('span');
+    pill.className = 'hist-pill';
+    pill.textContent = em;
+    container.appendChild(pill);
+  });
+}
+</script>
+</body>
+</html>
