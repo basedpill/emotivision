@@ -5,7 +5,7 @@ run:      python webapp/app.py
 needs:    models/emotion_cnn.keras  (produced by train_model.py)
 """
 
-import os, json, base64
+import os, json
 import numpy as np
 import cv2
 import tensorflow as tf
@@ -13,26 +13,18 @@ from flask import Flask, render_template, request, jsonify
 from flask_cors import CORS
 from tensorflow.keras.models import load_model
 
+from preprocess import decode_image, preprocess_face, EMOTION_META, IMG_SIZE, MAX_IMG_BYTES
+
 app = Flask(__name__)
 CORS(app)
 
 # paths
-MODEL_PATH    = os.path.join(os.path.dirname(__file__), '..', 'models', 'emotion_cnn.keras')
-LABELS_PATH   = os.path.join(os.path.dirname(__file__), '..', 'models', 'class_labels.json')
-HIST_PATH     = os.path.join(os.path.dirname(__file__), '..', 'models', 'training_history.json')
-REPORT_PATH   = os.path.join(os.path.dirname(__file__), '..', 'models', 'class_report.json')
-IMG_SIZE      = 48
-MAX_IMG_BYTES = 5 * 1024 * 1024  # 5mb cap on each frame
+# paths
+MODEL_PATH  = os.path.join(os.path.dirname(__file__), '..', 'models', 'emotion_cnn.keras')
+LABELS_PATH = os.path.join(os.path.dirname(__file__), '..', 'models', 'class_labels.json')
+HIST_PATH   = os.path.join(os.path.dirname(__file__), '..', 'models', 'training_history_v5b_seed123.json')
+REPORT_PATH = os.path.join(os.path.dirname(__file__), '..', 'models', 'class_report_ensemble.json')
 
-EMOTION_META = {
-    "angry":    {"emoji": "😠", "color": "#FF4500"},
-    "disgust":  {"emoji": "🤢", "color": "#32CD32"},
-    "fear":     {"emoji": "😨", "color": "#9370DB"},
-    "happy":    {"emoji": "😄", "color": "#FFD700"},
-    "sad":      {"emoji": "😢", "color": "#6495ED"},
-    "surprise": {"emoji": "😲", "color": "#FF69B4"},
-    "neutral":  {"emoji": "😐", "color": "#A9A9A9"},
-}
 
 print("[app] loading model...")
 try:
@@ -70,20 +62,6 @@ if model is not None:
 
 
 # utilities
-
-def decode_image(data_url):
-    """decode a base64 data-url into an opencv bgr image array."""
-    _, encoded = data_url.split(',', 1)
-    arr = np.frombuffer(base64.b64decode(encoded), dtype=np.uint8)
-    return cv2.imdecode(arr, cv2.IMREAD_COLOR)
-
-
-def preprocess_face(roi):
-    """convert a bgr face crop to a normalised (1, 48, 48, 1) float32 array."""
-    gray    = cv2.cvtColor(roi, cv2.COLOR_BGR2GRAY)
-    resized = cv2.resize(gray, (IMG_SIZE, IMG_SIZE))
-    return (resized.astype(np.float32) / 255.0).reshape(1, IMG_SIZE, IMG_SIZE, 1)
-
 
 def predict_emotion(face_tensor):
     """run the cnn and return emotions sorted by confidence (highest first)."""

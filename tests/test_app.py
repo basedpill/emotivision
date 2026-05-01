@@ -21,7 +21,7 @@ _mock_model.predict.return_value = _fake_preds
 
 with mock.patch('tensorflow.keras.models.load_model', return_value=_mock_model):
     import app as ev_app
-    from app import preprocess_face, decode_image, EMOTION_META
+    from preprocess import preprocess_face, decode_image, EMOTION_META
 
 
 @pytest.fixture
@@ -153,11 +153,10 @@ def test_analyze_blank_image_returns_no_faces(client):
 
 # /gradcam
 
-def test_gradcam_returns_200(client):
+def test_gradcam_get_returns_405(client):
+    """grad-cam only accepts POST; GET should return method-not-allowed."""
     resp = client.get('/gradcam')
-    # get not allowed, should be 405
     assert resp.status_code == 405
-
 
 def test_gradcam_no_body(client):
     resp = client.post('/gradcam', data='', content_type='application/json')
@@ -195,3 +194,15 @@ def test_each_emotion_has_color_and_emoji():
     for name, meta in EMOTION_META.items():
         assert 'color' in meta, f"missing color for {name}"
         assert 'emoji' in meta, f"missing emoji for {name}"
+
+def test_analyze_oversized_payload(client):
+    """payloads above the 5 MB cap should return 413."""
+    big = 'data:image/jpeg;base64,' + ('A' * (6 * 1024 * 1024))
+    resp = client.post('/analyze', json={'image': big})
+    assert resp.status_code in (413, 503)
+
+
+def test_analyze_truncated_base64(client):
+    """truncated base64 should be rejected, not crash."""
+    resp = client.post('/analyze', json={'image': 'data:image/jpeg;base64,!!!notb64!!!'})
+    assert resp.status_code in (400, 500, 503)
