@@ -75,12 +75,6 @@
 
     .pip.live {
       background: #4caf50;
-      animation: breathe 2.4s ease-in-out infinite;
-    }
-
-    @keyframes breathe {
-      0%, 100% { opacity: 1; }
-      50% { opacity: 0.35; }
     }
 
     /* 3-col grid */
@@ -312,8 +306,7 @@
     .ring-svg { overflow: visible; }
 
     .ring-bg { fill: none; stroke: var(--line); stroke-width: 6; }
-    .ring-fg { fill: none; stroke: var(--text); stroke-width: 6; stroke-linecap: round; stroke-dasharray: 226; stroke-dashoffset: 226; transition: stroke-dashoffset 1.2s cubic-bezier(.4,0,.2,1); }
-
+    .ring-fg { fill: none; stroke: var(--text); stroke-width: 6; stroke-linecap: round; stroke-dasharray: 226; stroke-dashoffset: 226;}
     .ring-center {
       text-anchor: middle;
       dominant-baseline: middle;
@@ -365,7 +358,7 @@
     .cr-bar-item { display: flex; flex-direction: column; gap: 2px; }
     .cr-bar-lbl { font-size: 9px; font-family: var(--mono); color: var(--faint); }
     .cr-track { height: 3px; background: var(--line); border-radius: 2px; overflow: hidden; }
-    .cr-fill { height: 100%; border-radius: 2px; background: var(--text); width: 0%; transition: width 0.9s ease; }
+    .cr-fill { height: 100%; border-radius: 2px; background: var(--text); width: 0%; transition: none; }
 
     .legend-note {
       font-size: 10px;
@@ -393,10 +386,8 @@
       border: 1px solid var(--line);
       border-radius: 4px;
       padding: 3px 8px;
-      animation: fadein 0.2s ease;
     }
 
-    @keyframes fadein { from { opacity: 0; transform: scale(0.85); } to { opacity: 1; transform: scale(1); } }
 
     .warn {
       background: #fffbeb;

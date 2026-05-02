@@ -232,7 +232,10 @@ def stats():
     if os.path.exists(REPORT_PATH):
         with open(REPORT_PATH) as f:
             rpt = json.load(f)
-        result["class_report"] = rpt
+        result["class_report"] = {
+            k: v for k, v in rpt.items()
+            if isinstance(v, dict) and 'precision' in v
+        }
         # class_report_ensemble.json stores accuracy and ensemble metadata at the top level
         if isinstance(rpt, dict):
             if "accuracy" in rpt and isinstance(rpt["accuracy"], (int, float)):
