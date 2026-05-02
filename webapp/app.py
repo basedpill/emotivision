@@ -5,7 +5,7 @@ run:      python webapp/app.py
 needs:    models/emotion_cnn.keras  (produced by train_model.py)
 """
 
-import os, json
+import os, json, base64
 import numpy as np
 import cv2
 import tensorflow as tf

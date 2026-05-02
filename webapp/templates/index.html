@@ -419,24 +419,36 @@
 
   <div class="cols">
 
-    <!-- camera -->
-    <div class="panel">
-      <div class="panel-label">camera</div>
-      <div class="cam-wrap">
-        <video id="video" autoplay playsinline muted></video>
-        <canvas id="boxCanvas"></canvas>
-        <div class="fcount" id="fcount"></div>
-        <div class="chip" id="chip">
-          <span class="chip-label" id="chipLabel">neutral</span>
-          <span class="chip-conf" id="chipConf">—</span>
+    <!-- left: camera + heatmap -->
+    <div style="display:flex;flex-direction:column;gap:16px">
+
+      <div class="panel">
+        <div class="panel-label">camera</div>
+        <div class="cam-wrap">
+          <video id="video" autoplay playsinline muted></video>
+          <canvas id="boxCanvas"></canvas>
+          <div class="fcount" id="fcount"></div>
+          <div class="chip" id="chip">
+            <span class="chip-label" id="chipLabel">neutral</span>
+            <span class="chip-conf" id="chipConf">—</span>
+          </div>
+        </div>
+        <div class="cam-foot">
+          <button class="btn primary" id="startBtn" onclick="startCam()">start</button>
+          <button class="btn" id="stopBtn" onclick="stopCam()" disabled>stop</button>
+          <button class="btn" id="gcBtn" onclick="toggleGradcam()" disabled>heatmap off</button>
+          <span style="font-family:var(--mono);font-size:11px;color:var(--faint);align-self:center;margin-left:4px" id="fps"></span>
         </div>
       </div>
-      <div class="cam-foot">
-        <button class="btn primary" id="startBtn" onclick="startCam()">start</button>
-        <button class="btn" id="stopBtn" onclick="stopCam()" disabled>stop</button>
-        <button class="btn" id="gcBtn" onclick="toggleGradcam()" disabled>heatmap off</button>
-        <span style="font-family:var(--mono);font-size:11px;color:var(--faint);align-self:center;margin-left:4px" id="fps"></span>
+
+      <div class="panel" id="heatmapPanel" style="display:none">
+        <div class="panel-label">attention map <span style="font-size:9px;color:var(--faint);text-transform:none;letter-spacing:0">grad-cam</span></div>
+        <div style="padding:12px;text-align:center">
+          <img id="heatmapImg" alt="" style="width:100%;border-radius:4px;display:block"/>
+          <div style="font-family:var(--mono);font-size:10px;color:var(--muted);margin-top:6px" id="heatmapEmo">—</div>
+        </div>
       </div>
+
     </div>
 
     <!-- middle: live analysis + history -->
@@ -492,14 +504,6 @@
         <div class="legend-note">
           precision: when predicted, how often correct<br>
           recall: of all real examples, how many found
-        </div>
-      </div>
-
-      <div class="panel" id="heatmapPanel" style="display:none">
-        <div class="panel-label">attention map <span style="font-size:9px;color:var(--faint);text-transform:none;letter-spacing:0">grad-cam</span></div>
-        <div style="padding:12px;text-align:center">
-          <img id="heatmapImg" alt="" style="width:100%;border-radius:4px;display:block"/>
-          <div style="font-family:var(--mono);font-size:10px;color:var(--muted);margin-top:6px" id="heatmapEmo">—</div>
         </div>
       </div>
 
