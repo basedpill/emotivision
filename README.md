@@ -98,3 +98,7 @@ trained and developed on:
 - nvidia rtx 3050 laptop gpu (4 gb vram)
 - ubuntu 22.04 in wsl2 on windows
 - tensorflow 2.21 with bundled cuda 12.x
+
+## dataset 
+
+this repo does not include the FER2013 dataset itself (/data is gitignored). FER2013 was released by Pierre-Luc Carrier and Aaron Courville as part of the ICML 2013 Challenges in Representation Learning, and is commonly distributed via Kaggle. check the current Kaggle listing for FER2013's license and usage terms before redistributing it or using it commercially as this repo only assumes you'll source it yourself and drop it into data/train and data/test.
